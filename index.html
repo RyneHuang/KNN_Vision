@@ -270,10 +270,37 @@
         updateTeachingNotes(dataset.description);
     }
 
-    // 占位函数 - 待后续实现
-    function updateVisualization() {
-        console.log('updateVisualization called for dataset:', state.currentDataset);
-    }
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // 数据集选择
+        document.getElementById('dataset-select').addEventListener('change', function(e) {
+            loadDataset(e.target.value);
+        });
+
+        // 归一化开关
+        document.getElementById('normalization-toggle').addEventListener('change', function(e) {
+            state.normalized = e.target.checked;
+            updateVisualization();
+        });
+
+        // K值滑块
+        document.getElementById('k-slider').addEventListener('input', function(e) {
+            state.k = parseInt(e.target.value);
+            document.getElementById('k-value-display').textContent = state.k;
+            updateVisualization();
+        });
+
+        // 画布点击事件 - 使用 Plotly 的点击事件
+        document.getElementById('scatter-plot').on('plotly_click', function(data) {
+            const x = data.points[0].x;
+            const y = data.points[0].y;
+            state.testPoint = {x, y};
+            updateVisualization();
+        });
+
+        // 初始加载默认数据集
+        loadDataset('breast-cancer');
+    });
 
     function updateTeachingNotes(description) {
         const notesEl = document.getElementById('teaching-notes');
@@ -526,7 +553,20 @@
      */
     function updatePredictionResult(prediction) {
         const resultDiv = document.getElementById('prediction-details');
-        resultDiv.innerHTML = '<p>预测类别: ' + prediction.label + '</p>';
+
+        let html = `<p><strong>预测类别:</strong> ${prediction.label}</p>`;
+        html += `<p><strong>投票统计:</strong></p><ul>`;
+        for (const [label, count] of Object.entries(prediction.voteCount)) {
+            html += `<li>类别 ${label}: ${count} 票</li>`;
+        }
+        html += `</ul>`;
+        html += `<p><strong>最近 ${state.k} 个邻居:</strong></p><ul>`;
+        prediction.neighbors.forEach((n, i) => {
+            html += `<li>邻居${i+1}: (${n.point.x.toFixed(3)}, ${n.point.y.toFixed(3)}) - 距离: ${n.distance.toFixed(4)}</li>`;
+        });
+        html += `</ul>`;
+
+        resultDiv.innerHTML = html;
     }
 </script>
 </body>
