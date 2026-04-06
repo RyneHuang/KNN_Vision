@@ -356,6 +356,88 @@
             label: p.label
         }));
     }
+
+    /**
+     * 生成决策边界网格
+     * @param {Array} data - 训练数据
+     * @param {number} resolution - 网格分辨率 (默认50x50)
+     * @param {number} k - K值
+     * @returns {Object} {grid: 2D数组, xRange, yRange}
+     */
+    function generateDecisionBoundary(data, resolution = 50, k = 5) {
+        const xValues = data.map(p => p.x);
+        const yValues = data.map(p => p.y);
+
+        const xMin = Math.min(...xValues);
+        const xMax = Math.max(...xValues);
+        const yMin = Math.min(...yValues);
+        const yMax = Math.max(...yValues);
+
+        const xStep = (xMax - xMin) / resolution;
+        const yStep = (yMax - yMin) / resolution;
+
+        const grid = [];
+
+        for (let i = 0; i < resolution; i++) {
+            const row = [];
+            for (let j = 0; j < resolution; j++) {
+                const x = xMin + (i + 0.5) * xStep;
+                const y = yMin + (j + 0.5) * yStep;
+                const prediction = knn_predict({x, y}, data, k);
+                row.push(prediction.label);
+            }
+            grid.push(row);
+        }
+
+        return {
+            grid: grid,
+            xRange: [xMin, xMax],
+            yRange: [yMin, yMax],
+            xStep: xStep,
+            yStep: yStep
+        };
+    }
+
+    /**
+     * 绘制决策边界
+     */
+    function plotDecisionBoundary() {
+        const dataset = DATASETS[state.currentDataset];
+        const data = state.normalized
+            ? minMaxNormalize(dataset.data)
+            : dataset.data;
+
+        const {grid, xRange, yRange} = generateDecisionBoundary(data, 50, state.k);
+
+        // 创建决策边界热力图
+        const boundaryTrace = {
+            x: [],
+            y: [],
+            z: [],
+            type: 'heatmap',
+            colorscale: [
+                [0, 'rgba(135, 206, 250, 0.6)'],  // 浅蓝色
+                [0.5, 'rgba(240, 128, 128, 0.3)'], // 中间色
+                [1, 'rgba(240, 128, 128, 0.6)']   // 浅红色
+            ],
+            showscale: false,
+            x0: xRange[0],
+            dx: (xRange[1] - xRange[0]) / 50,
+            y0: yRange[0],
+            dy: (yRange[1] - yRange[0]) / 50
+        };
+
+        // 填充网格数据
+        for (let i = 0; i < grid.length; i++) {
+            for (let j = 0; j < grid[i].length; j++) {
+                boundaryTrace.x.push(xRange[0] + (i + 0.5) * (xRange[1] - xRange[0]) / 50);
+                boundaryTrace.y.push(yRange[0] + (j + 0.5) * (yRange[1] - yRange[0]) / 50);
+                boundaryTrace.z.push(grid[i][j]);
+            }
+        }
+
+        return boundaryTrace;
+    }
 </script>
 </body>
 </html>
