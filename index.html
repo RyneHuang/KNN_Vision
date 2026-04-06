@@ -68,6 +68,20 @@
             font-size: 14px;
             line-height: 1.6;
         }
+    }
+    @media (max-width: 1024px) {
+        .container {
+            flex-direction: column;
+        }
+        .main-canvas {
+            flex: none;
+            height: 60vh;
+        }
+        .control-panel {
+            flex: none;
+            height: 40vh;
+        }
+    }
     </style>
 </head>
 <body>
@@ -104,6 +118,7 @@
             <div class="control-group" id="prediction-result">
                 <h3>预测结果</h3>
                 <div id="prediction-details"></div>
+                <button id="clear-btn" style="margin-top: 10px; padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">清空待测点</button>
             </div>
             <!-- 教学说明 -->
             <div class="control-group">
@@ -303,7 +318,17 @@
         state.testPoint = null;
         state.neighbors = [];
         updateVisualization();
-        updateTeachingNotes(dataset.description);
+        updateTeachingNotes(datasetKey);
+    }
+
+    /**
+     * 清空待测点
+     */
+    function clearTestPoint() {
+        state.testPoint = null;
+        state.neighbors = [];
+        updateVisualization();
+        document.getElementById('prediction-details').innerHTML = '<p>点击画布添加待测点</p>';
     }
 
     // 页面加载完成后初始化
@@ -312,6 +337,9 @@
         document.getElementById('dataset-select').addEventListener('change', function(e) {
             loadDataset(e.target.value);
         });
+
+        // 清空按钮
+        document.getElementById('clear-btn').addEventListener('click', clearTestPoint);
 
         // 归一化开关
         document.getElementById('normalization-toggle').addEventListener('change', function(e) {
@@ -324,6 +352,7 @@
             state.k = parseInt(e.target.value);
             document.getElementById('k-value-display').textContent = state.k;
             debounceUpdateVisualization();
+            updateTeachingNotes(state.currentDataset);
         });
 
         // 画布点击事件 - 使用 Plotly 的点击事件
@@ -338,11 +367,32 @@
         loadDataset('breast-cancer');
     });
 
-    function updateTeachingNotes(description) {
-        const notesEl = document.getElementById('teaching-notes');
-        if (notesEl) {
-            notesEl.textContent = description || '';
+    /**
+     * 更新教学说明
+     */
+    function updateTeachingNotes(datasetKey) {
+        const info = DATASET_DESCRIPTIONS[datasetKey];
+        const kValue = state.k;
+
+        let html = `<h4>${info.title}</h4>`;
+        html += `<p><strong>特征:</strong> ${info.features.join(', ')}</p>`;
+        html += `<p><strong>目的:</strong> ${info.purpose}</p>`;
+
+        if (info.scaleIssue) {
+            html += `<p style="color: #e65100;"><strong>注意:</strong> 未归一化时，半径值(10-25)远大于平滑度值(0.07-0.16)，距离计算会被半径主导。</p>`;
         }
+
+        // K值影响说明
+        html += `<hr><h4>K值对模型的影响</h4>`;
+        if (kValue <= 3) {
+            html += `<p>K值较小，模型复杂度高，容易过拟合，决策边界细碎。</p>`;
+        } else if (kValue <= 10) {
+            html += `<p>K值适中，模型复杂度适中，决策边界较为平滑。</p>`;
+        } else {
+            html += `<p>K值较大，模型简单，决策边界平滑，但可能欠拟合。</p>`;
+        }
+
+        document.getElementById('teaching-notes').innerHTML = html;
     }
 
     /**
