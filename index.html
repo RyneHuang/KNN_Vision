@@ -438,6 +438,96 @@
 
         return boundaryTrace;
     }
+
+    /**
+     * 绘制数据点散点图
+     */
+    function plotScatter() {
+        const dataset = DATASETS[state.currentDataset];
+        const data = state.normalized
+            ? minMaxNormalize(dataset.data)
+            : dataset.data;
+
+        // 按类别分组
+        const traces = {};
+        data.forEach(point => {
+            if (!traces[point.label]) {
+                traces[point.label] = {x: [], y: [], mode: 'markers', name: `类别 ${point.label}`};
+            }
+            traces[point.label].x.push(point.x);
+            traces[point.label].y.push(point.y);
+        });
+
+        return Object.values(traces);
+    }
+
+    /**
+     * 更新所有可视化
+     */
+    function updateVisualization() {
+        const dataset = DATASETS[state.currentDataset];
+        const processedData = state.normalized
+            ? minMaxNormalize(dataset.data)
+            : dataset.data;
+
+        // 绘制决策边界
+        const boundaryTrace = plotDecisionBoundary();
+
+        // 绘制散点
+        const scatterTraces = plotScatter();
+
+        const layout = {
+            title: `${dataset.name} - KNN决策边界 (K=${state.k})`,
+            xaxis: {title: '特征 1'},
+            yaxis: {title: '特征 2'},
+            dragmode: 'pan',
+            margin: {t: 60, r: 20, b: 60, l: 60}
+        };
+
+        // 如果有待测点，添加预测可视化
+        if (state.testPoint) {
+            const prediction = knn_predict(state.testPoint, processedData, state.k);
+            state.neighbors = prediction.neighbors;
+
+            // 添加待测点
+            const testPointTrace = {
+                x: [state.testPoint.x],
+                y: [state.testPoint.y],
+                mode: 'markers',
+                marker: {symbol: 'star', size: 20, color: 'green'},
+                name: '待测点'
+            };
+
+            // 添加邻居连线
+            const neighborTraces = prediction.neighbors.map((n, i) => ({
+                x: [state.testPoint.x, n.point.x],
+                y: [state.testPoint.y, n.point.y],
+                mode: 'lines',
+                line: {color: 'green', width: 1},
+                opacity: 0.5 - i * 0.05,
+                name: `邻居 ${i+1}`,
+                showlegend: false
+            }));
+
+            Plotly.newPlot('scatter-plot',
+                [boundaryTrace, ...scatterTraces, testPointTrace, ...neighborTraces],
+                layout
+            );
+
+            // 更新预测结果
+            updatePredictionResult(prediction);
+        } else {
+            Plotly.newPlot('scatter-plot', [boundaryTrace, ...scatterTraces], layout);
+        }
+    }
+
+    /**
+     * 更新预测结果面板
+     */
+    function updatePredictionResult(prediction) {
+        const resultDiv = document.getElementById('prediction-details');
+        resultDiv.innerHTML = '<p>预测类别: ' + prediction.label + '</p>';
+    }
 </script>
 </body>
 </html>
