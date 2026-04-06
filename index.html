@@ -281,6 +281,81 @@
             notesEl.textContent = description || '';
         }
     }
+
+    /**
+     * 计算两个点的欧氏距离
+     * @param {Object} p1 - 点1 {x, y}
+     * @param {Object} p2 - 点2 {x, y}
+     * @returns {number} 欧氏距离
+     */
+    function euclideanDistance(p1, p2) {
+        return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+    }
+
+    /**
+     * K近邻分类算法
+     * @param {Object} testPoint - 待分类点 {x, y}
+     * @param {Array} trainData - 训练数据 [{x, y, label}, ...]
+     * @param {number} k - 近邻数量
+     * @returns {Object} {label: 预测标签, neighbors: 最近k个邻居}
+     */
+    function knn_predict(testPoint, trainData, k) {
+        // 计算测试点到所有训练点的距离
+        const distances = trainData.map(point => ({
+            point: point,
+            distance: euclideanDistance(testPoint, point)
+        }));
+
+        // 按距离升序排序
+        distances.sort((a, b) => a.distance - b.distance);
+
+        // 取前k个最近邻
+        const kNeighbors = distances.slice(0, k);
+
+        // 多数投票
+        const voteCount = {};
+        kNeighbors.forEach(neighbor => {
+            const label = neighbor.point.label;
+            voteCount[label] = (voteCount[label] || 0) + 1;
+        });
+
+        // 找出得票最多的类别
+        let maxVotes = 0;
+        let predictedLabel = 0;
+        for (const [label, count] of Object.entries(voteCount)) {
+            if (count > maxVotes) {
+                maxVotes = count;
+                predictedLabel = parseInt(label);
+            }
+        }
+
+        return {
+            label: predictedLabel,
+            neighbors: kNeighbors,
+            voteCount: voteCount
+        };
+    }
+
+    /**
+     * Min-Max归一化
+     * @param {Array} data - 原始数据
+     * @returns {Array} 归一化后的数据
+     */
+    function minMaxNormalize(data) {
+        const xValues = data.map(p => p.x);
+        const yValues = data.map(p => p.y);
+
+        const xMin = Math.min(...xValues);
+        const xMax = Math.max(...xValues);
+        const yMin = Math.min(...yValues);
+        const yMax = Math.max(...yValues);
+
+        return data.map(p => ({
+            x: (p.x - xMin) / (xMax - xMin),
+            y: (p.y - yMin) / (yMax - yMin),
+            label: p.label
+        }));
+    }
 </script>
 </body>
 </html>
