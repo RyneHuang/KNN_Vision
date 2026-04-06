@@ -260,6 +260,42 @@
         neighbors: []
     };
 
+    // 使用节流优化频繁更新
+    let updateTimeout = null;
+
+    function debounceUpdateVisualization() {
+        if (updateTimeout) clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(updateVisualization, 100);
+    }
+
+    // 数据集中文描述增强
+    const DATASET_DESCRIPTIONS = {
+        'breast-cancer': {
+            title: '乳腺癌诊断数据集',
+            features: ['平均半径', '平均平滑度'],
+            purpose: '展示未归一化数据的尺度偏差问题',
+            scaleIssue: true
+        },
+        'iris': {
+            title: '鸢尾花数据集',
+            features: ['花萼长度', '花萼宽度'],
+            purpose: '展示基础三分类场景',
+            scaleIssue: false
+        },
+        'moons': {
+            title: '月亮数据集',
+            features: ['X坐标', 'Y坐标'],
+            purpose: '展示KNN处理非线性可分数据的能力',
+            scaleIssue: false
+        },
+        'circles': {
+            title: '同心圆数据集',
+            features: ['X坐标', 'Y坐标'],
+            purpose: '验证KNN在局部邻域分类中的表现',
+            scaleIssue: false
+        }
+    };
+
     // 加载数据集
     function loadDataset(datasetKey) {
         const dataset = DATASETS[datasetKey];
@@ -287,7 +323,7 @@
         document.getElementById('k-slider').addEventListener('input', function(e) {
             state.k = parseInt(e.target.value);
             document.getElementById('k-value-display').textContent = state.k;
-            updateVisualization();
+            debounceUpdateVisualization();
         });
 
         // 画布点击事件 - 使用 Plotly 的点击事件
