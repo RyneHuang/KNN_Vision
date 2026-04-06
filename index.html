@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KNN算法可视化教学演示系统</title>
-    <!-- Plotly.js CDN -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         * {
@@ -53,7 +52,8 @@
         }
 
         .control-group select,
-        .control-group input[type="range"] {
+        .control-group input[type="range"],
+        .control-group input[type="number"] {
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
@@ -70,7 +70,6 @@
             line-height: 1.6;
         }
 
-        /* 数据表格样式 */
         #data-table-container {
             background: #fff;
             border-radius: 8px;
@@ -102,19 +101,10 @@
             background: #fafafa;
         }
 
-        #data-table .label-0 {
-            color: #2196F3;
-        }
+        .label-0 { color: #2196F3; }
+        .label-1 { color: #4CAF50; }
+        .label-2 { color: #FF9800; }
 
-        #data-table .label-1 {
-            color: #4CAF50;
-        }
-
-        #data-table .label-2 {
-            color: #FF9800;
-        }
-
-        /* 特征选择器样式 */
         .feature-select-group {
             display: flex;
             gap: 10px;
@@ -123,6 +113,100 @@
 
         .feature-select-group select {
             flex: 1;
+        }
+
+        /* 手动输入区域 */
+        #manual-input-container {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        #manual-input-container h4 {
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .input-row label {
+            min-width: 80px;
+            margin-bottom: 0;
+        }
+
+        .input-row input {
+            flex: 1;
+        }
+
+        #predict-btn {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        #predict-btn:hover {
+            background: #45a049;
+        }
+
+        #distance-result {
+            margin-top: 15px;
+            font-size: 13px;
+            line-height: 1.8;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        #distance-result table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        #distance-result th, #distance-result td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: center;
+        }
+
+        #distance-result th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+
+        #distance-result .rank-1 { background: #ffd700; font-weight: bold; }
+        #distance-result .rank-2 { background: #c0c0c0; }
+        #distance-result .rank-3 { background: #cd7f32; }
+
+        .final-result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .final-result.apple {
+            background: #ffcccc;
+            color: #c41e3a;
+        }
+
+        .final-result.banana {
+            background: #fffacd;
+            color: #8b8000;
         }
 
         @media (max-width: 1024px) {
@@ -162,6 +246,7 @@
             <div class="control-group">
                 <label>数据集</label>
                 <select id="dataset-select">
+                    <option value="fruit">苹果香蕉数据集</option>
                     <option value="breast-cancer">乳腺癌诊断数据集</option>
                     <option value="iris">鸢尾花数据集</option>
                     <option value="moons">月亮数据集</option>
@@ -190,6 +275,20 @@
                 <label>K值: <span id="k-value-display">5</span></label>
                 <input type="range" id="k-slider" min="1" max="30" value="5">
             </div>
+            <!-- 手动输入预测 -->
+            <div id="manual-input-container">
+                <h4>📝 手动输入预测</h4>
+                <div class="input-row">
+                    <label id="input-x-label">硬度:</label>
+                    <input type="number" id="input-x" step="0.1" placeholder="请输入硬度值">
+                </div>
+                <div class="input-row">
+                    <label id="input-y-label">甜度:</label>
+                    <input type="number" id="input-y" step="0.1" placeholder="请输入甜度值">
+                </div>
+                <button id="predict-btn">开始预测</button>
+                <div id="distance-result"></div>
+            </div>
             <!-- 预测结果 -->
             <div class="control-group" id="prediction-result">
                 <h3>预测结果</h3>
@@ -206,9 +305,44 @@
 <script>
 // ============ 数据集定义 ============
 
+// 苹果香蕉数据集 - 2个特征：硬度和甜度
+const FRUIT_DATA = [
+    // 苹果 (0) - 硬度高，甜度中等
+    {hardness: 7.2, sweetness: 6.5, label: 0},
+    {hardness: 6.8, sweetness: 7.1, label: 0},
+    {hardness: 7.5, sweetness: 6.8, label: 0},
+    {hardness: 6.5, sweetness: 6.2, label: 0},
+    {hardness: 7.8, sweetness: 7.5, label: 0},
+    {hardness: 6.3, sweetness: 5.9, label: 0},
+    {hardness: 7.0, sweetness: 6.3, label: 0},
+    {hardness: 6.9, sweetness: 6.7, label: 0},
+    {hardness: 7.3, sweetness: 7.0, label: 0},
+    {hardness: 6.7, sweetness: 6.4, label: 0},
+    {hardness: 7.1, sweetness: 6.6, label: 0},
+    {hardness: 6.4, sweetness: 6.0, label: 0},
+    {hardness: 7.6, sweetness: 7.2, label: 0},
+    {hardness: 6.6, sweetness: 6.1, label: 0},
+    {hardness: 7.4, sweetness: 6.9, label: 0},
+    // 香蕉 (1) - 硬度低，甜度高
+    {hardness: 2.5, sweetness: 8.5, label: 1},
+    {hardness: 3.2, sweetness: 9.0, label: 1},
+    {hardness: 2.8, sweetness: 8.2, label: 1},
+    {hardness: 3.5, sweetness: 9.2, label: 1},
+    {hardness: 2.3, sweetness: 8.0, label: 1},
+    {hardness: 3.0, sweetness: 8.7, label: 1},
+    {hardness: 2.7, sweetness: 8.4, label: 1},
+    {hardness: 3.3, sweetness: 9.1, label: 1},
+    {hardness: 2.6, sweetness: 8.3, label: 1},
+    {hardness: 3.1, sweetness: 8.8, label: 1},
+    {hardness: 2.9, sweetness: 8.6, label: 1},
+    {hardness: 3.4, sweetness: 9.3, label: 1},
+    {hardness: 2.4, sweetness: 8.1, label: 1},
+    {hardness: 3.6, sweetness: 9.4, label: 1},
+    {hardness: 2.2, sweetness: 7.9, label: 1}
+];
+
 // 乳腺癌数据集 - 4个特征
 const BREAST_CANCER_DATA = [
-    // 良性 (0)
     {radius_mean: 12.5, texture_mean: 0.085, perimeter_mean: 0.125, area_mean: 0.512, label: 0},
     {radius_mean: 13.2, texture_mean: 0.092, perimeter_mean: 0.132, area_mean: 0.545, label: 0},
     {radius_mean: 14.1, texture_mean: 0.088, perimeter_mean: 0.141, area_mean: 0.580, label: 0},
@@ -219,7 +353,6 @@ const BREAST_CANCER_DATA = [
     {radius_mean: 13.0, texture_mean: 0.086, perimeter_mean: 0.130, area_mean: 0.530, label: 0},
     {radius_mean: 15.2, texture_mean: 0.098, perimeter_mean: 0.152, area_mean: 0.625, label: 0},
     {radius_mean: 11.5, texture_mean: 0.072, perimeter_mean: 0.115, area_mean: 0.465, label: 0},
-    // 恶性 (1)
     {radius_mean: 22.5, texture_mean: 0.142, perimeter_mean: 0.225, area_mean: 0.875, label: 1},
     {radius_mean: 21.3, texture_mean: 0.134, perimeter_mean: 0.213, area_mean: 0.820, label: 1},
     {radius_mean: 23.5, texture_mean: 0.156, perimeter_mean: 0.235, area_mean: 0.910, label: 1},
@@ -234,7 +367,6 @@ const BREAST_CANCER_DATA = [
 
 // 鸢尾花数据集 - 4个特征
 const IRIS_DATA = [
-    // Setosa (0)
     {sepal_length: 5.1, sepal_width: 3.5, petal_length: 1.4, petal_width: 0.2, label: 0},
     {sepal_length: 4.9, sepal_width: 3.0, petal_length: 1.4, petal_width: 0.2, label: 0},
     {sepal_length: 5.0, sepal_width: 3.2, petal_length: 1.2, petal_width: 0.2, label: 0},
@@ -245,7 +377,6 @@ const IRIS_DATA = [
     {sepal_length: 4.7, sepal_width: 3.2, petal_length: 1.3, petal_width: 0.2, label: 0},
     {sepal_length: 5.8, sepal_width: 4.0, petal_length: 1.2, petal_width: 0.2, label: 0},
     {sepal_length: 5.4, sepal_width: 3.9, petal_length: 1.3, petal_width: 0.2, label: 0},
-    // Versicolor (1)
     {sepal_length: 7.0, sepal_width: 3.2, petal_length: 4.7, petal_width: 1.4, label: 1},
     {sepal_length: 6.4, sepal_width: 3.2, petal_length: 4.5, petal_width: 1.5, label: 1},
     {sepal_length: 6.9, sepal_width: 3.1, petal_length: 4.9, petal_width: 1.5, label: 1},
@@ -256,7 +387,6 @@ const IRIS_DATA = [
     {sepal_length: 6.2, sepal_width: 2.2, petal_length: 3.3, petal_width: 1.0, label: 1},
     {sepal_length: 6.5, sepal_width: 2.8, petal_length: 4.1, petal_width: 1.3, label: 1},
     {sepal_length: 6.8, sepal_width: 3.0, petal_length: 4.5, petal_width: 1.4, label: 1},
-    // Virginica (2)
     {sepal_length: 6.3, sepal_width: 3.3, petal_length: 6.0, petal_width: 2.5, label: 2},
     {sepal_length: 5.8, sepal_width: 2.7, petal_length: 5.1, petal_width: 1.9, label: 2},
     {sepal_length: 7.1, sepal_width: 3.0, petal_length: 5.9, petal_width: 2.1, label: 2},
@@ -275,20 +405,12 @@ function generateMoonsData() {
     for (let i = 0; i < 50; i++) {
         const angle = Math.PI * (i / 50);
         const r = 1 + Math.random() * 0.3;
-        data.push({
-            x: r * Math.cos(angle) + (Math.random() - 0.5) * 0.1,
-            y: r * Math.sin(angle) + (Math.random() - 0.5) * 0.1,
-            label: 0
-        });
+        data.push({x: r * Math.cos(angle) + (Math.random() - 0.5) * 0.1, y: r * Math.sin(angle) + (Math.random() - 0.5) * 0.1, label: 0});
     }
     for (let i = 0; i < 50; i++) {
         const angle = Math.PI * (i / 50);
         const r = 1 + Math.random() * 0.3;
-        data.push({
-            x: r * Math.cos(angle + Math.PI) + 2 + (Math.random() - 0.5) * 0.1,
-            y: r * Math.sin(angle + Math.PI) + 0.5 + (Math.random() - 0.5) * 0.1,
-            label: 1
-        });
+        data.push({x: r * Math.cos(angle + Math.PI) + 2 + (Math.random() - 0.5) * 0.1, y: r * Math.sin(angle + Math.PI) + 0.5 + (Math.random() - 0.5) * 0.1, label: 1});
     }
     return data;
 }
@@ -299,36 +421,33 @@ function generateCirclesData() {
     for (let i = 0; i < 50; i++) {
         const angle = 2 * Math.PI * (i / 50);
         const r = 0.5 + Math.random() * 0.2;
-        data.push({
-            x: r * Math.cos(angle) + (Math.random() - 0.5) * 0.05,
-            y: r * Math.sin(angle) + (Math.random() - 0.5) * 0.05,
-            label: 0
-        });
+        data.push({x: r * Math.cos(angle) + (Math.random() - 0.5) * 0.05, y: r * Math.sin(angle) + (Math.random() - 0.5) * 0.05, label: 0});
     }
     for (let i = 0; i < 50; i++) {
         const angle = 2 * Math.PI * (i / 50);
         const r = 1.5 + Math.random() * 0.3;
-        data.push({
-            x: r * Math.cos(angle) + (Math.random() - 0.5) * 0.05,
-            y: r * Math.sin(angle) + (Math.random() - 0.5) * 0.05,
-            label: 1
-        });
+        data.push({x: r * Math.cos(angle) + (Math.random() - 0.5) * 0.05, y: r * Math.sin(angle) + (Math.random() - 0.5) * 0.05, label: 1});
     }
     return data;
 }
 
 // 数据集定义
 const DATASETS = {
+    'fruit': {
+        name: '苹果香蕉数据集',
+        data: FRUIT_DATA,
+        features: ['hardness', 'sweetness'],
+        featureLabels: {'hardness': '硬度', 'sweetness': '甜度'},
+        defaultFeatures: ['hardness', 'sweetness'],
+        description: '根据硬度和甜度区分苹果与香蕉',
+        labels: ['苹果', '香蕉'],
+        scaleIssue: true
+    },
     'breast-cancer': {
         name: '乳腺癌诊断数据集',
         data: BREAST_CANCER_DATA,
         features: ['radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean'],
-        featureLabels: {
-            'radius_mean': '平均半径',
-            'texture_mean': '平均纹理',
-            'perimeter_mean': '平均周长',
-            'area_mean': '平均面积'
-        },
+        featureLabels: {'radius_mean': '平均半径', 'texture_mean': '平均纹理', 'perimeter_mean': '平均周长', 'area_mean': '平均面积'},
         defaultFeatures: ['radius_mean', 'texture_mean'],
         description: '展示未归一化数据在距离计算中的尺度偏差问题',
         scaleIssue: true
@@ -337,14 +456,11 @@ const DATASETS = {
         name: '鸢尾花数据集',
         data: IRIS_DATA,
         features: ['sepal_length', 'sepal_width', 'petal_length', 'petal_width'],
-        featureLabels: {
-            'sepal_length': '花萼长度',
-            'sepal_width': '花萼宽度',
-            'petal_length': '花瓣长度',
-            'petal_width': '花瓣宽度'
-        },
+        featureLabels: {'sepal_length': '花萼长度', 'sepal_width': '花萼宽度', 'petal_length': '花瓣长度', 'petal_width': '花瓣宽度'},
         defaultFeatures: ['sepal_length', 'sepal_width'],
-        description: '展示基础三分类场景'
+        description: '展示基础三分类场景',
+        labels: ['Setosa', 'Versicolor', 'Virginica'],
+        scaleIssue: false
     },
     'moons': {
         name: '月亮数据集',
@@ -366,9 +482,9 @@ const DATASETS = {
 
 // 全局状态
 const state = {
-    currentDataset: 'breast-cancer',
-    featureX: 'radius_mean',
-    featureY: 'texture_mean',
+    currentDataset: 'fruit',
+    featureX: 'hardness',
+    featureY: 'sweetness',
     normalized: false,
     k: 5,
     testPoint: null,
@@ -385,9 +501,6 @@ function debounceUpdateVisualization() {
 
 // ============ 特征选择功能 ============
 
-/**
- * 更新特征选择器的选项
- */
 function updateFeatureSelectors() {
     const dataset = DATASETS[state.currentDataset];
     const features = dataset.features;
@@ -405,7 +518,6 @@ function updateFeatureSelectors() {
         ySelect.add(new Option(label, feature));
     });
 
-    // 设置默认值
     if (features.includes(state.featureX)) {
         xSelect.value = state.featureX;
     } else {
@@ -419,13 +531,14 @@ function updateFeatureSelectors() {
         ySelect.value = dataset.defaultFeatures[1] || features[1];
         state.featureY = dataset.defaultFeatures[1] || features[1];
     }
+
+    // 更新手动输入的标签
+    document.getElementById('input-x-label').textContent = featureLabels[state.featureX] || state.featureX + ':';
+    document.getElementById('input-y-label').textContent = featureLabels[state.featureY] || state.featureY + ':';
 }
 
 // ============ 数据表格功能 ============
 
-/**
- * 更新数据表格
- */
 function updateDataTable() {
     const dataset = DATASETS[state.currentDataset];
     const data = dataset.data;
@@ -435,7 +548,6 @@ function updateDataTable() {
     const thead = document.getElementById('data-table-head');
     const tbody = document.getElementById('data-table-body');
 
-    // 构建表头
     let headerHtml = '<tr><th>序号</th>';
     features.forEach(f => {
         headerHtml += `<th>${featureLabels[f] || f}</th>`;
@@ -443,23 +555,20 @@ function updateDataTable() {
     headerHtml += '<th>类别</th></tr>';
     thead.innerHTML = headerHtml;
 
-    // 构建数据行
     let bodyHtml = '';
     data.forEach((point, index) => {
         bodyHtml += `<tr><td>${index + 1}</td>`;
         features.forEach(f => {
             bodyHtml += `<td>${point[f].toFixed(3)}</td>`;
         });
-        bodyHtml += `<td class="label-${point.label}">${point.label}</td></tr>`;
+        const labelName = dataset.labels ? dataset.labels[point.label] : point.label;
+        bodyHtml += `<td class="label-${point.label}">${labelName}</td></tr>`;
     });
     tbody.innerHTML = bodyHtml;
 }
 
 // ============ 数据预处理 ============
 
-/**
- * 获取当前选择特征的数据
- */
 function getCurrentFeatureData(data, featureX, featureY) {
     return data.map(point => ({
         x: point[featureX],
@@ -469,9 +578,6 @@ function getCurrentFeatureData(data, featureX, featureY) {
     }));
 }
 
-/**
- * Min-Max归一化（针对当前选择的特征）
- */
 function minMaxNormalizeSelected(data, featureX, featureY) {
     const xValues = data.map(p => p.x);
     const yValues = data.map(p => p.y);
@@ -490,48 +596,26 @@ function minMaxNormalizeSelected(data, featureX, featureY) {
 
 // ============ KNN算法 ============
 
-/**
- * 计算两点间的欧氏距离（多维）
- */
-function euclideanDistanceMultidimensional(p1, p2, features) {
-    let sum = 0;
-    for (const f of features) {
-        sum += Math.pow(p1[f] - p2[f], 2);
-    }
-    return Math.sqrt(sum);
-}
-
-/**
- * 计算两点间在2D特征空间中的欧氏距离
- */
 function euclideanDistance2D(p1, p2) {
     return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 }
 
-/**
- * K近邻分类算法（使用当前选择的2个特征）
- */
 function knn_predict(testPoint, trainData, k) {
-    // 计算测试点到所有训练点的距离
     const distances = trainData.map(point => ({
         point: point,
         distance: euclideanDistance2D(testPoint, point)
     }));
 
-    // 按距离升序排序
     distances.sort((a, b) => a.distance - b.distance);
 
-    // 取前k个最近邻
     const kNeighbors = distances.slice(0, k);
 
-    // 多数投票
     const voteCount = {};
     kNeighbors.forEach(neighbor => {
         const label = neighbor.point.label;
         voteCount[label] = (voteCount[label] || 0) + 1;
     });
 
-    // 找出得票最多的类别
     let maxVotes = 0;
     let predictedLabel = 0;
     for (const [label, count] of Object.entries(voteCount)) {
@@ -544,15 +628,94 @@ function knn_predict(testPoint, trainData, k) {
     return {
         label: predictedLabel,
         neighbors: kNeighbors,
-        voteCount: voteCount
+        voteCount: voteCount,
+        allDistances: distances
     };
+}
+
+// ============ 手动预测功能 ============
+
+function handleManualPrediction() {
+    const xInput = document.getElementById('input-x').value;
+    const yInput = document.getElementById('input-y').value;
+
+    if (xInput === '' || yInput === '' || isNaN(xInput) || isNaN(yInput)) {
+        document.getElementById('distance-result').innerHTML = '<p style="color: red;">请输入有效的数值！</p>';
+        return;
+    }
+
+    const x = parseFloat(xInput);
+    const y = parseFloat(yInput);
+    const dataset = DATASETS[state.currentDataset];
+    const k = state.k;
+    const displayK = k + 5;
+
+    // 获取当前特征数据
+    const data = getCurrentFeatureData(dataset.data, state.featureX, state.featureY);
+    const processedData = state.normalized ? minMaxNormalizeSelected(data, state.featureX, state.featureY) : data;
+
+    // 创建测试点
+    const testPoint = { x, y };
+
+    // 进行预测
+    const result = knn_predict(testPoint, processedData, displayK);
+
+    const xLabel = dataset.featureLabels[state.featureX] || state.featureX;
+    const yLabel = dataset.featureLabels[state.featureY] || state.featureY;
+    const labelNames = dataset.labels || ['类别0', '类别1', '类别2'];
+
+    // 显示计算过程
+    let html = `<p><strong>📊 距离计算过程</strong></p>`;
+    html += `<p><strong>待测点:</strong> (${xLabel}=${x.toFixed(2)}, ${yLabel}=${y.toFixed(2)})</p>`;
+    html += `<p><strong>欧氏距离公式:</strong> d = √[(x₁-x₂)² + (y₁-y₂)²]</p>`;
+    html += `<p><strong>K值:</strong> ${k}，显示前 ${displayK} 个最近邻居</p>`;
+    html += `<p><strong>距离排序结果:</strong></p>`;
+    html += `<table>`;
+    html += `<tr><th>排名</th><th>样本</th><th>${xLabel}</th><th>${yLabel}</th><th>类别</th><th>距离</th><th>计算过程</th></tr>`;
+
+    result.allDistances.slice(0, displayK).forEach((item, index) => {
+        const rank = index + 1;
+        const rankClass = rank <= 3 ? `rank-${rank}` : '';
+        const sampleName = labelNames[item.point.label] || `样本${index + 1}`;
+        const dx = (testPoint.x - item.point.x).toFixed(4);
+        const dy = (testPoint.y - item.point.y).toFixed(4);
+        const calc = `√[(${dx})² + (${dy})²] = ${item.distance.toFixed(4)}`;
+
+        html += `<tr class="${rankClass}">
+            <td>${rank}</td>
+            <td>${sampleName}</td>
+            <td>${item.point.x.toFixed(3)}</td>
+            <td>${item.point.y.toFixed(3)}</td>
+            <td>${sampleName}</td>
+            <td>${item.distance.toFixed(4)}</td>
+            <td style="font-size:11px;">${calc}</td>
+        </tr>`;
+    });
+
+    html += `</table>`;
+
+    // 投票统计
+    html += `<p style="margin-top:15px;"><strong>📝 K=${k} 近邻投票统计:</strong></p><ul>`;
+    for (const [label, count] of Object.entries(result.voteCount)) {
+        const name = labelNames[label] || `类别${label}`;
+        html += `<li>${name}: ${count} 票</li>`;
+    }
+    html += `</ul>`;
+
+    // 最终结果
+    const finalLabel = labelNames[result.label];
+    const finalClass = result.label === 0 ? 'apple' : 'banana';
+    html += `<div class="final-result ${finalClass}">🍎 最终分类结果: <strong>${finalLabel}</strong></div>`;
+
+    document.getElementById('distance-result').innerHTML = html;
+
+    // 同时更新画布上的待测点
+    state.testPoint = { [state.featureX]: x, [state.featureY]: y };
+    updateVisualization();
 }
 
 // ============ 可视化 ============
 
-/**
- * 生成决策边界网格
- */
 function generateDecisionBoundary(data, resolution = 50, k = 5) {
     const xValues = data.map(p => p.x);
     const yValues = data.map(p => p.y);
@@ -578,42 +741,23 @@ function generateDecisionBoundary(data, resolution = 50, k = 5) {
         grid.push(row);
     }
 
-    return {
-        grid: grid,
-        xRange: [xMin, xMax],
-        yRange: [yMin, yMax]
-    };
+    return { grid, xRange: [xMin, xMax], yRange: [yMin, yMax] };
 }
 
-/**
- * 绘制决策边界
- */
 function plotDecisionBoundary() {
     const dataset = DATASETS[state.currentDataset];
     const featureLabels = dataset.featureLabels;
     const data = getCurrentFeatureData(dataset.data, state.featureX, state.featureY);
 
-    const processedData = state.normalized
-        ? minMaxNormalizeSelected(data, state.featureX, state.featureY)
-        : data;
-
+    const processedData = state.normalized ? minMaxNormalizeSelected(data, state.featureX, state.featureY) : data;
     const {grid, xRange, yRange} = generateDecisionBoundary(processedData, 50, state.k);
 
     const boundaryTrace = {
-        x: [],
-        y: [],
-        z: [],
-        type: 'heatmap',
-        colorscale: [
-            [0, 'rgba(135, 206, 250, 0.6)'],
-            [0.5, 'rgba(240, 128, 128, 0.3)'],
-            [1, 'rgba(240, 128, 128, 0.6)']
-        ],
+        x: [], y: [], z: [], type: 'heatmap',
+        colorscale: [[0, 'rgba(135, 206, 250, 0.6)'], [0.5, 'rgba(240, 128, 128, 0.3)'], [1, 'rgba(240, 128, 128, 0.6)']],
         showscale: false,
-        x0: xRange[0],
-        dx: (xRange[1] - xRange[0]) / 50,
-        y0: yRange[0],
-        dy: (yRange[1] - yRange[0]) / 50
+        x0: xRange[0], dx: (xRange[1] - xRange[0]) / 50,
+        y0: yRange[0], dy: (yRange[1] - yRange[0]) / 50
     };
 
     for (let i = 0; i < grid.length; i++) {
@@ -627,21 +771,16 @@ function plotDecisionBoundary() {
     return boundaryTrace;
 }
 
-/**
- * 绘制数据点散点图
- */
 function plotScatter() {
     const dataset = DATASETS[state.currentDataset];
     const data = getCurrentFeatureData(dataset.data, state.featureX, state.featureY);
-
-    const processedData = state.normalized
-        ? minMaxNormalizeSelected(data, state.featureX, state.featureY)
-        : data;
+    const processedData = state.normalized ? minMaxNormalizeSelected(data, state.featureX, state.featureY) : data;
 
     const traces = {};
     processedData.forEach(point => {
+        const name = dataset.labels ? dataset.labels[point.label] : `类别 ${point.label}`;
         if (!traces[point.label]) {
-            traces[point.label] = {x: [], y: [], mode: 'markers', name: `类别 ${point.label}`};
+            traces[point.label] = {x: [], y: [], mode: 'markers', name};
         }
         traces[point.label].x.push(point.x);
         traces[point.label].y.push(point.y);
@@ -650,9 +789,6 @@ function plotScatter() {
     return Object.values(traces);
 }
 
-/**
- * 更新所有可视化
- */
 function updateVisualization() {
     const dataset = DATASETS[state.currentDataset];
     const featureLabels = dataset.featureLabels;
@@ -673,11 +809,8 @@ function updateVisualization() {
 
     if (state.testPoint) {
         const data = getCurrentFeatureData(dataset.data, state.featureX, state.featureY);
-        const processedData = state.normalized
-            ? minMaxNormalizeSelected(data, state.featureX, state.featureY)
-            : data;
+        const processedData = state.normalized ? minMaxNormalizeSelected(data, state.featureX, state.featureY) : data;
 
-        // 将原始坐标转换为当前特征的坐标
         const testPoint2D = {
             x: state.testPoint[state.featureX],
             y: state.testPoint[state.featureY]
@@ -687,46 +820,34 @@ function updateVisualization() {
         state.neighbors = prediction.neighbors;
 
         const testPointTrace = {
-            x: [testPoint2D.x],
-            y: [testPoint2D.y],
-            mode: 'markers',
-            marker: {symbol: 'star', size: 20, color: 'green'},
+            x: [testPoint2D.x], y: [testPoint2D.y],
+            mode: 'markers', marker: {symbol: 'star', size: 20, color: 'green'},
             name: '待测点'
         };
 
         const neighborTraces = prediction.neighbors.map((n, i) => ({
-            x: [testPoint2D.x, n.point.x],
-            y: [testPoint2D.y, n.point.y],
-            mode: 'lines',
-            line: {color: 'green', width: 1},
-            opacity: 0.5 - i * 0.05,
-            name: `邻居 ${i+1}`,
-            showlegend: false
+            x: [testPoint2D.x, n.point.x], y: [testPoint2D.y, n.point.y],
+            mode: 'lines', line: {color: 'green', width: 1},
+            opacity: 0.5 - i * 0.05, name: `邻居 ${i+1}`, showlegend: false
         }));
 
-        Plotly.newPlot('scatter-plot',
-            [boundaryTrace, ...scatterTraces, testPointTrace, ...neighborTraces],
-            layout
-        );
-
+        Plotly.newPlot('scatter-plot', [boundaryTrace, ...scatterTraces, testPointTrace, ...neighborTraces], layout);
         updatePredictionResult(prediction);
     } else {
         Plotly.newPlot('scatter-plot', [boundaryTrace, ...scatterTraces], layout);
     }
 }
 
-/**
- * 更新预测结果面板
- */
 function updatePredictionResult(prediction) {
     const resultDiv = document.getElementById('prediction-details');
     const dataset = DATASETS[state.currentDataset];
     const featureLabels = dataset.featureLabels;
+    const labelNames = dataset.labels || ['类别0', '类别1', '类别2'];
 
-    let html = `<p><strong>预测类别:</strong> ${prediction.label}</p>`;
+    let html = `<p><strong>预测类别:</strong> ${labelNames[prediction.label]}</p>`;
     html += `<p><strong>投票统计:</strong></p><ul>`;
     for (const [label, count] of Object.entries(prediction.voteCount)) {
-        html += `<li>类别 ${label}: ${count} 票</li>`;
+        html += `<li>${labelNames[label]}: ${count} 票</li>`;
     }
     html += `</ul>`;
     html += `<p><strong>最近 ${state.k} 个邻居:</strong></p><ul>`;
@@ -740,9 +861,6 @@ function updatePredictionResult(prediction) {
     resultDiv.innerHTML = html;
 }
 
-/**
- * 更新教学说明
- */
 function updateTeachingNotes(datasetKey) {
     const dataset = DATASETS[datasetKey];
     const kValue = state.k;
@@ -775,14 +893,15 @@ function loadDataset(datasetKey) {
     state.testPoint = null;
     state.neighbors = [];
 
-    // 更新特征选择
     updateFeatureSelectors();
-
-    // 更新数据表格
     updateDataTable();
-
     updateVisualization();
     updateTeachingNotes(datasetKey);
+
+    // 清空手动输入结果
+    document.getElementById('distance-result').innerHTML = '';
+    document.getElementById('input-x').value = '';
+    document.getElementById('input-y').value = '';
 }
 
 function clearTestPoint() {
@@ -790,33 +909,31 @@ function clearTestPoint() {
     state.neighbors = [];
     updateVisualization();
     document.getElementById('prediction-details').innerHTML = '<p>点击画布添加待测点</p>';
+    document.getElementById('distance-result').innerHTML = '';
 }
 
-// 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     // 数据集选择
     document.getElementById('dataset-select').addEventListener('change', function(e) {
         loadDataset(e.target.value);
     });
 
-    // 特征X选择
+    // 特征选择
     document.getElementById('feature-x-select').addEventListener('change', function(e) {
         state.featureX = e.target.value;
         state.testPoint = null;
+        updateFeatureSelectors();
         updateVisualization();
         updateDataTable();
     });
 
-    // 特征Y选择
     document.getElementById('feature-y-select').addEventListener('change', function(e) {
         state.featureY = e.target.value;
         state.testPoint = null;
+        updateFeatureSelectors();
         updateVisualization();
         updateDataTable();
     });
-
-    // 清空按钮
-    document.getElementById('clear-btn').addEventListener('click', clearTestPoint);
 
     // 归一化开关
     document.getElementById('normalization-toggle').addEventListener('change', function(e) {
@@ -832,20 +949,29 @@ document.addEventListener('DOMContentLoaded', function() {
         updateTeachingNotes(state.currentDataset);
     });
 
+    // 手动预测按钮
+    document.getElementById('predict-btn').addEventListener('click', handleManualPrediction);
+
+    // 回车键触发预测
+    document.getElementById('input-x').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleManualPrediction();
+    });
+    document.getElementById('input-y').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleManualPrediction();
+    });
+
+    // 清空按钮
+    document.getElementById('clear-btn').addEventListener('click', clearTestPoint);
+
     // 画布点击事件
     document.getElementById('scatter-plot').on('plotly_click', function(data) {
         const dataset = DATASETS[state.currentDataset];
-        // 获取点击的2D坐标
         const clickedX = data.points[0].x;
         const clickedY = data.points[0].y;
 
-        // 转换为原始特征空间的坐标
         const rawData = getCurrentFeatureData(dataset.data, state.featureX, state.featureY);
-        const processedData = state.normalized
-            ? minMaxNormalizeSelected(rawData, state.featureX, state.featureY)
-            : rawData;
+        const processedData = state.normalized ? minMaxNormalizeSelected(rawData, state.featureX, state.featureY) : rawData;
 
-        // 根据点击的归一化坐标计算原始坐标
         if (state.normalized) {
             const xValues = rawData.map(p => p.x);
             const yValues = rawData.map(p => p.y);
@@ -867,7 +993,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 初始加载
-    loadDataset('breast-cancer');
+    loadDataset('fruit');
 });
 </script>
 </body>
