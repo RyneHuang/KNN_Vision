@@ -524,10 +524,6 @@ function updateFeatureSelectors() {
         ySelect.value = dataset.defaultFeatures[1] || features[1];
         state.featureY = dataset.defaultFeatures[1] || features[1];
     }
-
-    // 更新手动输入区域的特征标签
-    document.getElementById('input-x-label').textContent = featureLabels[state.featureX] || state.featureX + ':';
-    document.getElementById('input-y-label').textContent = featureLabels[state.featureY] || state.featureY + ':';
 }
 
 // 动态生成特征输入框
