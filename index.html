@@ -278,14 +278,7 @@
             <!-- 手动输入预测 -->
             <div id="manual-input-container">
                 <h4>📝 手动输入预测</h4>
-                <div class="input-row">
-                    <label id="input-x-label">硬度:</label>
-                    <input type="number" id="input-x" step="0.1" placeholder="请输入硬度值">
-                </div>
-                <div class="input-row">
-                    <label id="input-y-label">甜度:</label>
-                    <input type="number" id="input-y" step="0.1" placeholder="请输入甜度值">
-                </div>
+                <div id="feature-inputs"></div>
                 <button id="predict-btn">开始预测</button>
                 <div id="distance-result"></div>
             </div>
@@ -532,9 +525,30 @@ function updateFeatureSelectors() {
         state.featureY = dataset.defaultFeatures[1] || features[1];
     }
 
-    // 更新手动输入的标签
+    // 更新手动输入区域的特征标签
     document.getElementById('input-x-label').textContent = featureLabels[state.featureX] || state.featureX + ':';
     document.getElementById('input-y-label').textContent = featureLabels[state.featureY] || state.featureY + ':';
+}
+
+// 动态生成特征输入框
+function generateFeatureInputs() {
+    const dataset = DATASETS[state.currentDataset];
+    const features = dataset.features;
+    const featureLabels = dataset.featureLabels;
+
+    const container = document.getElementById('feature-inputs');
+    container.innerHTML = '';
+
+    features.forEach((feature, index) => {
+        const label = featureLabels[feature] || feature;
+        const row = document.createElement('div');
+        row.className = 'input-row';
+        row.innerHTML = `
+            <label for="input-${index}">${label}:</label>
+            <input type="number" id="input-${index}" data-feature="${feature}" step="0.1" placeholder="请输入${label}">
+        `;
+        container.appendChild(row);
+    });
 }
 
 // ============ 数据表格功能 ============
@@ -636,38 +650,58 @@ function knn_predict(testPoint, trainData, k) {
 // ============ 手动预测功能 ============
 
 function handleManualPrediction() {
-    const xInput = document.getElementById('input-x').value;
-    const yInput = document.getElementById('input-y').value;
-
-    if (xInput === '' || yInput === '' || isNaN(xInput) || isNaN(yInput)) {
-        document.getElementById('distance-result').innerHTML = '<p style="color: red;">请输入有效的数值！</p>';
-        return;
-    }
-
-    const x = parseFloat(xInput);
-    const y = parseFloat(yInput);
     const dataset = DATASETS[state.currentDataset];
+    const features = dataset.features;
+    const featureLabels = dataset.featureLabels;
     const k = state.k;
     const displayK = k + 5;
 
-    // 获取当前特征数据
+    // 收集所有输入值
+    const inputValues = {};
+    let allValid = true;
+
+    features.forEach(feature => {
+        const input = document.getElementById(`input-${features.indexOf(feature)}`);
+        const value = input.value;
+        if (value === '' || isNaN(parseFloat(value))) {
+            allValid = false;
+        } else {
+            inputValues[feature] = parseFloat(value);
+        }
+    });
+
+    if (!allValid) {
+        document.getElementById('distance-result').innerHTML = '<p style="color: red;">请输入所有特征的有效数值！</p>';
+        return;
+    }
+
+    // 获取训练数据（仅使用当前选择的2个可视化特征）
     const data = getCurrentFeatureData(dataset.data, state.featureX, state.featureY);
     const processedData = state.normalized ? minMaxNormalizeSelected(data, state.featureX, state.featureY) : data;
 
-    // 创建测试点
-    const testPoint = { x, y };
+    // 创建测试点（仅用2个可视化特征）
+    const testPoint = {
+        x: inputValues[state.featureX],
+        y: inputValues[state.featureY]
+    };
 
     // 进行预测
     const result = knn_predict(testPoint, processedData, displayK);
 
-    const xLabel = dataset.featureLabels[state.featureX] || state.featureX;
-    const yLabel = dataset.featureLabels[state.featureY] || state.featureY;
+    const xLabel = featureLabels[state.featureX] || state.featureX;
+    const yLabel = featureLabels[state.featureY] || state.featureY;
     const labelNames = dataset.labels || ['类别0', '类别1', '类别2'];
 
     // 显示计算过程
     let html = `<p><strong>📊 距离计算过程</strong></p>`;
-    html += `<p><strong>待测点:</strong> (${xLabel}=${x.toFixed(2)}, ${yLabel}=${y.toFixed(2)})</p>`;
+    html += `<p><strong>待测点:</strong> `;
+    features.forEach((f, i) => {
+        const val = inputValues[f];
+        html += `${featureLabels[f] || f}=${val.toFixed(2)}${i < features.length - 1 ? ', ' : ''}`;
+    });
+    html += `</p>`;
     html += `<p><strong>欧氏距离公式:</strong> d = √[(x₁-x₂)² + (y₁-y₂)²]</p>`;
+    html += `<p><strong>使用的特征:</strong> ${xLabel} (X轴), ${yLabel} (Y轴)</p>`;
     html += `<p><strong>K值:</strong> ${k}，显示前 ${displayK} 个最近邻居</p>`;
     html += `<p><strong>距离排序结果:</strong></p>`;
     html += `<table>`;
@@ -710,7 +744,7 @@ function handleManualPrediction() {
     document.getElementById('distance-result').innerHTML = html;
 
     // 同时更新画布上的待测点
-    state.testPoint = { [state.featureX]: x, [state.featureY]: y };
+    state.testPoint = { [state.featureX]: inputValues[state.featureX], [state.featureY]: inputValues[state.featureY] };
     updateVisualization();
 }
 
@@ -893,15 +927,18 @@ function loadDataset(datasetKey) {
     state.testPoint = null;
     state.neighbors = [];
 
+    // 重置特征选择为默认值
+    state.featureX = dataset.defaultFeatures[0];
+    state.featureY = dataset.defaultFeatures[1];
+
     updateFeatureSelectors();
+    generateFeatureInputs();  // 动态生成特征输入框
     updateDataTable();
     updateVisualization();
     updateTeachingNotes(datasetKey);
 
     // 清空手动输入结果
     document.getElementById('distance-result').innerHTML = '';
-    document.getElementById('input-x').value = '';
-    document.getElementById('input-y').value = '';
 }
 
 function clearTestPoint() {
@@ -952,12 +989,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // 手动预测按钮
     document.getElementById('predict-btn').addEventListener('click', handleManualPrediction);
 
-    // 回车键触发预测
-    document.getElementById('input-x').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') handleManualPrediction();
-    });
-    document.getElementById('input-y').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') handleManualPrediction();
+    // 回车键触发预测（动态为所有输入框添加）
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && e.target.id.startsWith('input-')) {
+            handleManualPrediction();
+        }
     });
 
     // 清空按钮
