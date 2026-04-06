@@ -112,5 +112,175 @@
             </div>
         </div>
     </div>
+<script>
+    // 生成月亮数据集
+    function generateMoonsData() {
+        const data = [];
+        // 第一个半月 (标签0)
+        for (let i = 0; i < 50; i++) {
+            const angle = Math.PI * (i / 50);
+            const r = 1 + Math.random() * 0.3;
+            data.push({
+                x: r * Math.cos(angle) + (Math.random() - 0.5) * 0.1,
+                y: r * Math.sin(angle) + (Math.random() - 0.5) * 0.1,
+                label: 0
+            });
+        }
+        // 第二个半月 (标签1)
+        for (let i = 0; i < 50; i++) {
+            const angle = Math.PI * (i / 50);
+            const r = 1 + Math.random() * 0.3;
+            data.push({
+                x: r * Math.cos(angle + Math.PI) + 2 + (Math.random() - 0.5) * 0.1,
+                y: r * Math.sin(angle + Math.PI) + 0.5 + (Math.random() - 0.5) * 0.1,
+                label: 1
+            });
+        }
+        return data;
+    }
+
+    // 生成同心圆数据集
+    function generateCirclesData() {
+        const data = [];
+        // 内圆 (标签0)
+        for (let i = 0; i < 50; i++) {
+            const angle = 2 * Math.PI * (i / 50);
+            const r = 0.5 + Math.random() * 0.2;
+            data.push({
+                x: r * Math.cos(angle) + (Math.random() - 0.5) * 0.05,
+                y: r * Math.sin(angle) + (Math.random() - 0.5) * 0.05,
+                label: 0
+            });
+        }
+        // 外圆 (标签1)
+        for (let i = 0; i < 50; i++) {
+            const angle = 2 * Math.PI * (i / 50);
+            const r = 1.5 + Math.random() * 0.3;
+            data.push({
+                x: r * Math.cos(angle) + (Math.random() - 0.5) * 0.05,
+                y: r * Math.sin(angle) + (Math.random() - 0.5) * 0.05,
+                label: 1
+            });
+        }
+        return data;
+    }
+
+    // 数据集定义
+    const DATASETS = {
+        'breast-cancer': {
+            name: '乳腺癌诊断数据集',
+            // 特征: 平均半径, 平均平滑度
+            // 良性肿瘤标记为0，恶性肿瘤标记为1
+            data: [
+                // 良性 (0)
+                {x: 12.5, y: 0.085, label: 0},
+                {x: 13.2, y: 0.092, label: 0},
+                {x: 14.1, y: 0.088, label: 0},
+                {x: 11.8, y: 0.076, label: 0},
+                {x: 13.5, y: 0.095, label: 0},
+                {x: 14.3, y: 0.090, label: 0},
+                {x: 12.1, y: 0.078, label: 0},
+                {x: 13.0, y: 0.086, label: 0},
+                {x: 15.2, y: 0.098, label: 0},
+                {x: 11.5, y: 0.072, label: 0},
+                // 恶性 (1)
+                {x: 22.5, y: 0.142, label: 1},
+                {x: 21.3, y: 0.134, label: 1},
+                {x: 23.5, y: 0.156, label: 1},
+                {x: 20.8, y: 0.128, label: 1},
+                {x: 24.2, y: 0.162, label: 1},
+                {x: 19.5, y: 0.118, label: 1},
+                {x: 22.8, y: 0.148, label: 1},
+                {x: 21.0, y: 0.130, label: 1},
+                {x: 23.0, y: 0.152, label: 1},
+                {x: 20.5, y: 0.122, label: 1}
+            ],
+            description: '展示未归一化数据在距离计算中的尺度偏差问题'
+        },
+        'iris': {
+            name: '鸢尾花数据集',
+            // 花萼长度, 花萼宽度
+            data: [
+                // Setosa (0)
+                {x: 5.1, y: 3.5, label: 0},
+                {x: 4.9, y: 3.0, label: 0},
+                {x: 5.0, y: 3.2, label: 0},
+                {x: 5.5, y: 3.6, label: 0},
+                {x: 4.8, y: 3.1, label: 0},
+                {x: 5.2, y: 3.4, label: 0},
+                {x: 5.3, y: 3.7, label: 0},
+                {x: 4.7, y: 3.2, label: 0},
+                {x: 5.8, y: 4.0, label: 0},
+                {x: 5.4, y: 3.9, label: 0},
+                // Versicolor (1)
+                {x: 7.0, y: 3.2, label: 1},
+                {x: 6.4, y: 3.2, label: 1},
+                {x: 6.9, y: 3.1, label: 1},
+                {x: 6.5, y: 2.8, label: 1},
+                {x: 6.3, y: 2.9, label: 1},
+                {x: 6.6, y: 2.5, label: 1},
+                {x: 7.1, y: 3.0, label: 1},
+                {x: 6.2, y: 2.2, label: 1},
+                {x: 6.5, y: 2.8, label: 1},
+                {x: 6.8, y: 3.0, label: 1},
+                // Virginica (2)
+                {x: 6.3, y: 3.3, label: 2},
+                {x: 5.8, y: 2.7, label: 2},
+                {x: 7.1, y: 3.0, label: 2},
+                {x: 6.3, y: 2.9, label: 2},
+                {x: 6.5, y: 3.0, label: 2},
+                {x: 7.7, y: 3.8, label: 2},
+                {x: 7.7, y: 2.6, label: 2},
+                {x: 6.0, y: 2.2, label: 2},
+                {x: 6.9, y: 3.2, label: 2},
+                {x: 5.6, y: 2.8, label: 2}
+            ],
+            description: '展示基础分类场景，三种鸢尾花分类'
+        },
+        'moons': {
+            name: '月亮数据集',
+            // 生成的月牙形数据
+            data: generateMoonsData(),
+            description: '展示KNN在处理非凸形状数据分布时的优势'
+        },
+        'circles': {
+            name: '同心圆数据集',
+            // 生成的同心圆数据
+            data: generateCirclesData(),
+            description: '验证KNN算法在局部邻域分类中的表现'
+        }
+    };
+
+    // 全局状态
+    const state = {
+        currentDataset: 'breast-cancer',
+        normalized: false,
+        k: 5,
+        testPoint: null,
+        neighbors: []
+    };
+
+    // 加载数据集
+    function loadDataset(datasetKey) {
+        const dataset = DATASETS[datasetKey];
+        state.currentDataset = datasetKey;
+        state.testPoint = null;
+        state.neighbors = [];
+        updateVisualization();
+        updateTeachingNotes(dataset.description);
+    }
+
+    // 占位函数 - 待后续实现
+    function updateVisualization() {
+        console.log('updateVisualization called for dataset:', state.currentDataset);
+    }
+
+    function updateTeachingNotes(description) {
+        const notesEl = document.getElementById('teaching-notes');
+        if (notesEl) {
+            notesEl.textContent = description || '';
+        }
+    }
+</script>
 </body>
 </html>
