@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KNN算法可视化教学演示系统</title>
+    <!-- Plotly.js CDN -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .main-canvas {
+            flex: 0 0 70%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-panel {
+            flex: 0 0 30%;
+            background: #fff;
+            padding: 20px;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .control-group select,
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        #k-value-display {
+            color: #2196F3;
+            font-weight: bold;
+        }
+
+        #prediction-details {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧主画布区域 (70%) -->
+        <div class="main-canvas">
+            <div id="scatter-plot"></div>
+            <div id="decision-boundary"></div>
+        </div>
+        <!-- 右侧控制面板 (30%) -->
+        <div class="control-panel">
+            <h2>KNN 算法演示</h2>
+            <!-- 数据集选择 -->
+            <div class="control-group">
+                <label>数据集</label>
+                <select id="dataset-select">
+                    <option value="breast-cancer">乳腺癌诊断数据集</option>
+                    <option value="iris">鸢尾花数据集</option>
+                    <option value="moons">月亮数据集</option>
+                    <option value="circles">同心圆数据集</option>
+                </select>
+            </div>
+            <!-- 归一化开关 -->
+            <div class="control-group">
+                <label>启用Min-Max归一化</label>
+                <input type="checkbox" id="normalization-toggle">
+            </div>
+            <!-- K值滑块 -->
+            <div class="control-group">
+                <label>K值: <span id="k-value-display">5</span></label>
+                <input type="range" id="k-slider" min="1" max="30" value="5">
+            </div>
+            <!-- 预测结果 -->
+            <div class="control-group" id="prediction-result">
+                <h3>预测结果</h3>
+                <div id="prediction-details"></div>
+            </div>
+            <!-- 教学说明 -->
+            <div class="control-group">
+                <h3>教学说明</h3>
+                <div id="teaching-notes"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
